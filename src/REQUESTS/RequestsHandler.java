@@ -3,12 +3,21 @@ package REQUESTS;
 import java.io.*;
 import java.net.Socket;
 
+/**
+ * This class defines methods that handle the requests from the user
+ */
 public class RequestsHandler
 {
-    private final String request;
-    private final PrintWriter out_to_client;
-    private final Socket socket;
+    private final String request; //  request from user
+    private final PrintWriter out_to_client; // stream to communicate with the client
+    private final Socket socket; // socket instance that connects the server with the client
 
+    /**
+     * This constructor initializes the socket , the stream, and  request from client
+     * @param request Request from client
+     * @param out stream to write to the browser
+     * @param socket socket instance that connects the server with client
+     */
     public RequestsHandler(String request, PrintWriter out, Socket socket)
     {
         // initialize variables
@@ -16,13 +25,22 @@ public class RequestsHandler
         this.out_to_client = out;
         this.socket = socket;
 
-        // handle the requests
-        handle_request();
+        handle_request(); // handle the request from the client
     }
 
+    /**
+     * This method handles the requests from the client by serving the files and communicate with the browser
+     */
     private void handle_request()
     {
-        // split the request message
+        /*
+            Here I take that line I read from the request and I extract the necessary information I need which is:
+            1. Request type
+            2. Request Url
+            3. Protocol Version
+
+            I first split the string my spaces and store the results on a String array. Then access information sequentially
+         */
         String[] request_message = request.split(" ");
         // the type of request
         String request_type = request_message[0];
@@ -33,7 +51,7 @@ public class RequestsHandler
         // check if the request type is get
         if(request_type.equals("GET"))
         {
-            // handle the request
+            // handle the request by using the requested url
             switch (request_url)
             {
                 case "/Joburg":
@@ -52,19 +70,25 @@ public class RequestsHandler
                     serve("data/data/Africa.jpg", out_to_client);
                 default:
                     String[] arr = request_protocol_version.split("\r\n");
-                    System.out.println(arr[0]);
-                    out_to_client.write(arr[0] + " 404" + " Not found\r\n" + "Content-Type: text/plain\r\n" + "\r\n" + "File not found");
+                    out_to_client.write(arr[0] + " 404" + " Not found\r\n" + "Content-Type: text/html\r\n" + "\r\n" + "File not found");
                     out_to_client.flush();
             }
         }
     }
 
+    /**
+     * This method handles the functionality to server the files to the browser
+     * @param file_path path to the file
+     * @param writer stream used to send headers to the browser
+     */
     private void serve(String file_path, PrintWriter writer)
     {
+        // creating a byte stream to send the files to the browser
         try(DataOutputStream out = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream())))
         {
+            // get the file from path and read it
             File file_to_return = new File(file_path);
-
+            // ensure if the file exists
             if(file_to_return.exists())
             {
                 // first send the headers
@@ -73,12 +97,13 @@ public class RequestsHandler
                 writer.write(headers);
                 writer.flush();
 
-                // now sending the actual file
+                // read the file to memory
                 try(FileInputStream in = new FileInputStream(file_to_return))
                 {
-                    byte[] buffer = new byte[30000];
+                    // create a buffer to store the bytes read from the file
+                    byte[] buffer = new byte[1024];
                     int bytesRead = 0;
-                    // read the file into the byte array
+                    // read the file into the buffer
                     while((bytesRead = in.read(buffer)) > 0)
                     {
                         // write the data from the buffer from byte zero to the last into the data output stream
@@ -88,7 +113,9 @@ public class RequestsHandler
                 }
                 catch (IOException e)
                 {
-                    System.out.println("FileInputStream Error");
+                   writer.write("HTTP/1.1 500 Internal Server Error\r\n" + "\r\n" +
+                           "Content-Type: text/html\r\n" + "\r\n" + "Internal Server Error");
+                   writer.flush();
                 }
             }
             else
